@@ -33,11 +33,18 @@ const key = c => c[0] + ',' + c[1];
 async function getJson(url) { const r = await fetch(url); return r.json(); }
 
 async function play(calls, dryRun) {
-  const r = await fetch(SITE + '/api/play', {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({id: ID, key: KEY, dryRun, calls})
-  });
-  return r.json();
+  for (let t = 0; t < 5; t++) {
+    try {
+      const r = await fetch(SITE + '/api/play', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({id: ID, key: KEY, dryRun, calls})
+      });
+      const txt = await r.text();
+      try { return JSON.parse(txt); } catch { log('play ' + (dryRun ? 'dry run' : 'save') + ' try ' + t + ' got HTTP ' + r.status + ': ' + txt.slice(0, 200)); }
+    } catch (e) { log('play try ' + t + ' failed: ' + e.message); }
+    await sleep(15000 * (t + 1));
+  }
+  return {error: 'the test bed server kept failing'};
 }
 
 async function askOnce(system, messages) {
@@ -281,7 +288,7 @@ This is turn ${n} of ${TURNS} in this run. UTC time now: ${new Date().toISOStrin
     }
     plan = p;
     report = await play(plan.calls, true);
-    if (report.error) throw new Error('Play error: ' + cut(report, 1500));
+    if (report.error) { log('turn ' + n + ' dry run error: ' + cut(report, 1500)); return false; }
     issues = lint(plan.calls, mine, details);
     log(`turn ${n} round ${round}: ${report.accepted} of ${report.calls} accepted, flags ${(report.newFlags || []).length}, quality issues ${issues.length}, score after ${report.scoreAfter}`);
     if (!(report.rejected || []).length && !(report.newFlags || []).length && !issues.length) break;
