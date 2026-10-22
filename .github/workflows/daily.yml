@@ -1,0 +1,25 @@
+name: purple daily
+on:
+  schedule:
+    - cron: '0 15 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  play:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node agent.mjs
+        env:
+          PURPLE_KEY: ${{ secrets.PURPLE_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      - run: |
+          git config user.name purple-agent
+          git config user.email purple-agent@users.noreply.github.com
+          git add notes.md
+          git commit -m "purple notes" || true
+          git push
