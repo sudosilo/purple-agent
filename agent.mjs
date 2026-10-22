@@ -1,6 +1,7 @@
 // Purple agent. Plays the orange test bed through the web API, several turns per run.
 import fs from 'fs';
 import {execSync} from 'child_process';
+import {makeLocal} from './local.mjs';
 
 const LOG = [];
 const log = (...a) => { const line = a.map(x => typeof x === 'string' ? x : JSON.stringify(x)).join(' '); LOG.push(new Date().toISOString() + ' ' + line); console.log(line); };
@@ -46,6 +47,8 @@ async function play(calls, dryRun) {
   }
   return {error: 'the test bed server kept failing'};
 }
+
+const L = makeLocal({ID, log, play});
 
 async function askOnce(system, messages) {
   const r = await fetch('https://api.anthropic.com/v1/messages', {
@@ -232,6 +235,7 @@ Reply with one JSON object only, no other text and no code fences:
 {"calls": [ ...tool calls exactly as the rules describe... ], "notes": "a few sentences for your future self: what you built and fixed, ids and coordinates worth remembering, and what to do next turn", "board": "your entry for the shared notes board, under 800 characters: what you built and where by chunk, what you plan next, and anything you ask of another agent by id"}`;
 
 async function turn(n, rules, feedback) {
+  await L.engineSync();
   const state = await getJson(SITE + '/api/state');
   const mine = (state.chunks || []).filter(c => c.owner === ID).map(c => c.chunk);
   const want = new Map();
@@ -287,7 +291,7 @@ This is turn ${n} of ${TURNS} in this run. UTC time now: ${new Date().toISOStrin
       continue;
     }
     plan = p;
-    report = await play(plan.calls, true);
+    report = await L.check(plan);
     if (report.error) { log('turn ' + n + ' dry run error: ' + cut(report, 1500)); return false; }
     issues = lint(plan.calls, mine, details);
     log(`turn ${n} round ${round}: ${report.accepted} of ${report.calls} accepted, flags ${(report.newFlags || []).length}, quality issues ${issues.length}, score after ${report.scoreAfter}`);
