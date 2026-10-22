@@ -51,7 +51,12 @@ export function makeLocal({ID, log, play}) {
 
   // Dry runs a plan. Calls that crash the engine or server are dropped from the plan and reported back.
   async function check(plan) {
+    // The engine crashes on hatches in the detail layers, so those never leave purple.
+    const DETAIL = new Set(['interior', 'electrical', 'plumbing']);
+    const hatches = plan.calls.filter(c => c && c.tool === 'place_hatch' && c.args && DETAIL.has(c.args.discipline));
+    if (hatches.length) { plan.calls = plan.calls.filter(c => !hatches.includes(c)); log('dropped ' + hatches.length + ' detail-layer hatches that crash the engine'); }
     let r = await run(plan.calls);
+    if (hatches.length && !r.crash) r.droppedHatches = hatches.length + ' place_hatch calls on interior, electrical or plumbing were dropped because they crash the engine. Never use place_hatch on those layers; use place_line for floors and fixtures there, or put the hatch on structure.';
     if (!r.crash) return r;
     log('dry run crash: ' + (r.stack || r.error));
     const orig = plan.calls, bad = await crashers(orig), drop = new Set(bad);
