@@ -282,7 +282,9 @@ This is turn ${n} of ${TURNS} in this run. UTC time now: ${new Date().toISOStrin
 
   let plan = null, report = null, issues = [];
   for (let round = 0; round < ROUNDS; round++) {
-    const text = await ask(SYSTEM, messages);
+    let text;
+    try { text = await ask(SYSTEM, messages); }
+    catch (e) { if (plan && report && !report.error) { log('Claude stopped answering, saving the last checked plan: ' + e.message); break; } throw e; }
     messages.push({role: 'assistant', content: text});
     let p;
     try { p = parse(text); } catch (e) {
