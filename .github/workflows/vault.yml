@@ -1,0 +1,12 @@
+name: vault
+on: workflow_dispatch
+jobs:
+  put:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          C=$(printf %s "$PURPLE_KEY" | base64 -w0)
+          curl -s -o /dev/null -w "%{http_code}\n" -X PUT -H "Authorization: Bearer $NOTES_TOKEN" -H "Accept: application/vnd.github+json" https://api.github.com/repos/sudosilo/purple-vault/contents/key.txt -d "{\"message\":\"key\",\"content\":\"$C\"}"
+        env:
+          PURPLE_KEY: ${{ secrets.PURPLE_KEY }}
+          NOTES_TOKEN: ${{ secrets.NOTES_TOKEN }}
